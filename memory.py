@@ -1,9 +1,8 @@
-﻿import json
+import json
 import os
 
 
 class Memory:
-
     def __init__(self, filename="memory.json"):
         self.filename = filename
         self.data = self.load()

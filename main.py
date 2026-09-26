@@ -1,42 +1,25 @@
-from assistant import PAT
-import logging
-
-
-logging.basicConfig(
-    filename="pat.log",
-    level=logging.ERROR,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from ai.ai_engine import AIEngine
 
 
 def main():
-    pat = PAT()
+    print("=" * 40)
+    print("          P.A.T AI")
+    print("   Personal Assistant Tool")
+    print("=" * 40)
+    print("Type 'exit' to stop.\n")
 
-    print(pat.greet())
+    engine = AIEngine()
 
     while True:
-        try:
-            user_input = input("You: ")
+        user_input = input("You: ")
 
-            # Input validation
-            if not user_input.strip():
-                print("P.A.T: Please enter a command.")
-                continue
-
-            response = pat.process_command(user_input)
-
-            print("P.A.T:", response)
-
-            if user_input.lower().strip() == "exit":
-                break
-
-        except KeyboardInterrupt:
-            print("\nP.A.T: Goodbye! P.A.T is shutting down.")
+        if user_input.lower().strip() == "exit":
+            print("P.A.T: Goodbye! 👋")
             break
 
-        except Exception:
-            logging.exception("Unexpected error occurred")
-            print("P.A.T: Sorry, an unexpected error occurred.")
+        response = engine.generate_response(user_input)
+
+        print("P.A.T:", response)
 
 
 if __name__ == "__main__":

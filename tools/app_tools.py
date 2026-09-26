@@ -1,10 +1,9 @@
-﻿import os
+import os
 import subprocess
 import webbrowser
 
 
 class AppTools:
-
     def open_calculator(self):
         subprocess.Popen("calc.exe")
         return "Calculator opened."

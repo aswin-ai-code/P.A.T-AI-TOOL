@@ -1,8 +1,7 @@
-﻿import os
+import os
 
 
 class FileTools:
-
     def list_files(self):
         items = os.listdir()
         files = [item for item in items if os.path.isfile(item)]

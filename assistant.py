@@ -1,29 +1,27 @@
-﻿from commands import CommandHandler
-from tools.file_tools import FileTools
-import config
-from memory import Memory
+﻿import platform
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+import config
+from ai.ai_engine import AIEngine
+from commands import CommandHandler
+from memory import Memory
 from tools.app_tools import AppTools
 from tools.file_tools import FileTools
-import platform
-from difflib import get_close_matches
 
 
 class PAT:
-
     def __init__(self):
-        self.name = "P.A.T"
-        self.full_name = "Personal Assistant Tool"
-        self.app_tools = AppTools()
-        self.file_tools = FileTools()
-        self.file_tools = FileTools()
         self.name = config.APP_NAME
         self.full_name = config.FULL_NAME
         self.version = config.VERSION
-        self.name = "P.A.T"
-        self.full_name = "Personal Assistant Tool"
+
         self.commands = CommandHandler()
         self.memory = Memory()
+        self.ai_engine = AIEngine()
+        self.app_tools = AppTools()
+        self.file_tools = FileTools()
+
         self.user_name = self.memory.recall("user_name")
 
     def remember_name(self, name):
@@ -33,7 +31,10 @@ class PAT:
 
     def greet(self):
         if self.user_name:
-            return f"Hello, {self.user_name}! I am {self.name}, your Personal Assistant Tool."
+            return (
+                f"Hello, {self.user_name}! "
+                f"I am {self.name}, your Personal Assistant Tool."
+            )
 
         return f"Hello! I am {self.name}, your Personal Assistant Tool."
 
@@ -41,11 +42,17 @@ class PAT:
         return f"{self.name} v{self.version} is online and ready."
 
     def get_time(self):
-        current_time = datetime.now().strftime("%I:%M:%S %p")
+        current_time = datetime.now(
+            ZoneInfo("Asia/Kolkata")
+        ).strftime("%I:%M:%S %p")
+
         return f"The current time is {current_time}."
 
     def get_date(self):
-        current_date = datetime.now().strftime("%d %B %Y")
+        current_date = datetime.now(
+            ZoneInfo("Asia/Kolkata")
+        ).strftime("%d %B %Y")
+
         return f"Today's date is {current_date}."
 
     def get_system_info(self):
@@ -79,6 +86,8 @@ class PAT:
             "- help\n"
             "- my name is <name>\n"
             "- what is my name\n"
+            "- conversation status\n"
+            "- clear conversation\n"
             "- exit"
         )
 
@@ -104,97 +113,81 @@ class PAT:
         if action == "greeting":
             return self.greet()
 
-        elif action == "how_are_you":
+        if action == "how_are_you":
             return "I am doing great! I am ready to help you."
 
-        elif action == "assistant_name":
+        if action == "assistant_name":
             return f"My name is {self.name}, Personal Assistant Tool."
 
-        elif action == "who_are_you":
+        if action == "who_are_you":
             return "I am P.A.T, your Personal Assistant Tool."
 
-        elif action == "thanks":
+        if action == "thanks":
             if self.user_name:
                 return f"You're welcome, {self.user_name}!"
+
             return "You're welcome!"
 
-        elif action == "time":
+        if action == "time":
             return self.get_time()
 
-        elif action == "date":
+        if action == "date":
             return self.get_date()
 
-        elif action == "system_info":
+        if action == "system_info":
             return self.get_system_info()
 
-        elif action == "status":
+        if action == "status":
             return self.status()
 
-        elif action == "help":
+        if action == "conversation_status":
+            return (
+                f"Conversation context contains "
+                f"{self.ai_engine.get_context_count()} messages."
+            )
+
+        if action == "clear_conversation":
+            self.ai_engine.clear_context()
+            return "Conversation context cleared."
+
+        if action == "help":
             return self.help()
 
-        elif action == "exit":
+        if action == "exit":
             return "Goodbye! P.A.T is shutting down."
 
-        elif action == "open_calculator":
+        if action == "open_calculator":
             return self.app_tools.open_calculator()
 
-        elif action == "open_notepad":
+        if action == "open_notepad":
             return self.app_tools.open_notepad()
 
-        elif action == "open_browser":
+        if action == "open_browser":
             return self.app_tools.open_browser()
 
-        elif action == "open_youtube":
+        if action == "open_youtube":
             return self.app_tools.open_youtube()
 
-        elif action == "open_google":
+        if action == "open_google":
             return self.app_tools.open_google()
 
-        elif action == "current_directory":
+        if action == "current_directory":
             return self.app_tools.current_directory()
 
-        elif action == "clear_screen":
+        if action == "clear_screen":
             return self.app_tools.clear_screen()
-        
-        elif action == "list_files":
-           return self.file_tools.list_files()
 
-        elif action == "list_folders":
-           return self.file_tools.list_folders()
+        if action == "list_files":
+            return self.file_tools.list_files()
 
-        elif action == "file_count":
-           return self.file_tools.file_count()
+        if action == "list_folders":
+            return self.file_tools.list_folders()
 
-        elif action == "folder_count":
-           return self.file_tools.folder_count()
-        elif action == "list_files":
-           return self.file_tools.list_files()
+        if action == "file_count":
+            return self.file_tools.file_count()
 
-        elif action == "list_folders":
-           return self.file_tools.list_folders()
+        if action == "folder_count":
+            return self.file_tools.folder_count()
 
-        elif action == "file_count":
-           return self.file_tools.file_count()
+        return self.ai_engine.generate_response(command)
 
-        elif action == "folder_count":
-           return self.file_tools.folder_count()
-        
-
-        else:
-            available_commands = list(self.commands.get_commands().keys())
-
-            suggestions = get_close_matches(
-                command,
-                available_commands,
-                n=1,
-                cutoff=0.6
-            )
-
-            if suggestions:
-                return f"Did you mean '{suggestions[0]}'?"
-
-            return (
-                "I don't understand that command yet. "
-                "Try 'help' to see the available commands."
-            )

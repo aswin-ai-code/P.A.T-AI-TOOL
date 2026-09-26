@@ -1,4 +1,5 @@
-from ai.ai_engine import AIEngine
+from assistant import PAT
+from voice import PATVoice
 
 
 def main():
@@ -6,21 +7,27 @@ def main():
     print("          P.A.T AI")
     print("   Personal Assistant Tool")
     print("=" * 40)
-    print("Type 'exit' to stop.\n")
+    print("Voice mode active. Say 'exit' to stop.\n")
 
-    engine = AIEngine()
+    pat = PAT()
+    voice = PATVoice()
+
+    voice.speak(pat.greet())
 
     while True:
-        user_input = input("You: ")
+        user_input = voice.listen()
+
+        if not user_input:
+            continue
+
+        response = pat.process_command(user_input)
+
+        voice.speak(response)
 
         if user_input.lower().strip() == "exit":
-            print("P.A.T: Goodbye! 👋")
             break
-
-        response = engine.generate_response(user_input)
-
-        print("P.A.T:", response)
 
 
 if __name__ == "__main__":
     main()
+    

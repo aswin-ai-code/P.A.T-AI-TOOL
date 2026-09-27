@@ -24,10 +24,14 @@ def main():
 
         voice.speak(response)
 
-        if user_input.lower().strip() == "exit":
+        # Use P.A.T's intent engine to detect exit variations
+        intent = pat.ai_engine.intent_engine.detect_intent(
+            user_input
+        )
+
+        if intent == "exit":
             break
 
 
 if __name__ == "__main__":
     main()
-    

@@ -53,7 +53,11 @@ class AIEngine:
             # ResponseProcessor currently accepts:
             # process(text, context=None)
             # -------------------------------------------------
-            response = self.response_processor.process(prompt, context)
+            response = self.response_processor.process(
+             prompt,
+            context,
+            self.last_intent
+)
 
             # -------------------------------------------------
             # STEP 5: Save conversation

@@ -3,3 +3,12 @@
 pat.log
 .venv/
 .env
+# P.A.T temporary test files
+audio_level_test.py
+mic_test.py
+whisper_test.py
+whisper_test.wav
+
+# P.A.T source backup
+P.A.T-source.zip
+PAT-source/

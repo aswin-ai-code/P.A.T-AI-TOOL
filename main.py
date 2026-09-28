@@ -4,7 +4,7 @@ from voice import PATVoice
 
 def main():
     print("=" * 40)
-    print("          P.A.T AI")
+    print("          PAT AI")
     print("   Personal Assistant Tool")
     print("=" * 40)
     print("Voice mode active. Say 'exit' to stop.\n")

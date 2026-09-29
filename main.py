@@ -1,36 +1,175 @@
 from assistant import PAT
-from voice import PATVoice
 
 
 def main():
+
     print("=" * 40)
-    print("          PAT AI")
+    print("          P.A.T AI")
     print("   Personal Assistant Tool")
     print("=" * 40)
-    print("Voice mode active. Say 'exit' to stop.\n")
+    print("Voice conversation mode active.")
+    print("Say 'exit' or 'goodbye' to stop.\n")
 
+    # INITIALIZE P.A.T
     pat = PAT()
-    voice = PATVoice()
 
-    voice.speak(pat.greet())
+    # P.A.T VOICE SYSTEM
+    voice = pat.voice
+
+    # STARTUP GREETING
+    greeting = pat.greet()
+
+    if greeting:
+        voice.speak(greeting)
+
+    # -----------------------------------------
+    # CONTINUOUS CONVERSATION LOOP
+    # -----------------------------------------
 
     while True:
-        user_input = voice.listen()
 
-        if not user_input:
-            continue
+        try:
 
-        response = pat.process_command(user_input)
+            # LISTEN
+            user_input = voice.listen()
 
-        voice.speak(response)
+            # IGNORE EMPTY INPUT
+            if not user_input:
+                continue
 
-        # Use P.A.T's intent engine to detect exit variations
-        intent = pat.ai_engine.intent_engine.detect_intent(
-            user_input
-        )
+            print(f"You: {user_input}")
 
-        if intent == "exit":
+            # ---------------------------------
+            # EXIT CHECK
+            # ---------------------------------
+
+            normalized_input = (
+                user_input
+                .lower()
+                .strip()
+                .rstrip(".,!?")
+            )
+
+            # Normalize punctuation and spaces
+            normalized_input = normalized_input.replace(
+                "-",
+                " "
+            )
+
+            normalized_input = normalized_input.replace(
+                ",",
+                " "
+            )
+
+            normalized_input = " ".join(
+                normalized_input.split()
+            )
+
+            # ---------------------------------
+            # EXIT COMMANDS
+            # ---------------------------------
+
+            exit_commands = {
+                "exit",
+                "quit",
+                "stop",
+                "goodbye",
+                "good bye",
+                "goodbye pat",
+                "good bye pat",
+                "bye",
+                "bye pat",
+                "see you",
+                "see you later",
+            }
+
+            # ---------------------------------
+            # EXIT PHRASE DETECTION
+            # ---------------------------------
+
+            should_exit = (
+                normalized_input in exit_commands
+                or normalized_input.startswith(
+                    "good bye "
+                )
+                or normalized_input.startswith(
+                    "goodbye "
+                )
+                or normalized_input.startswith(
+                    "bye "
+                )
+                or normalized_input.startswith(
+                    "exit "
+                )
+            )
+
+            if should_exit:
+
+                response = (
+                    "Goodbye! "
+                    "P.A.T is shutting down."
+                )
+
+                print("🔊 Speaking response...")
+
+                voice.speak(
+                    response
+                )
+
+                print(
+                    "\nP.A.T voice session ended."
+                )
+
+                break
+
+            # ---------------------------------
+            # PROCESS USER MESSAGE
+            # ---------------------------------
+
+            response = pat.process_command(
+                user_input
+            )
+
+            # ---------------------------------
+            # VOICE RESPONSE
+            # ---------------------------------
+
+            if response:
+
+                print(
+                    "🔊 Speaking response..."
+                )
+
+                voice.speak(
+                    response
+                )
+
+            else:
+
+                # Safety fallback
+                fallback = (
+                    "I am listening. "
+                    "Please tell me what you need."
+                )
+
+                voice.speak(
+                    fallback
+                )
+
+        except KeyboardInterrupt:
+
+            print(
+                "\n\nP.A.T voice session stopped."
+            )
+
             break
+
+        except Exception as error:
+
+            print(
+                "\nVoice loop error: "
+                f"{type(error).__name__}: {error}"
+            )
 
 
 if __name__ == "__main__":

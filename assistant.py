@@ -1014,18 +1014,42 @@ class PAT:
         # APPLICATION CONTROL
         # -----------------------------------------
 
-        if action == "application_control":
+        if action == "open_calculator":
 
-            response = self.execute_task(
-                original_command
-            )
+          return self.respond(
+            original_command,
+            self.app_tools.open_calculator()
+    )
 
-            if response:
+        if action == "open_notepad":
 
-                return self.respond(
-                    original_command,
-                    response
-                )
+         return self.respond(
+           original_command,
+           self.app_tools.open_notepad()
+    )
+
+        if action == "open_browser":
+
+         return self.respond(
+          original_command,
+          self.app_tools.open_browser()
+    )
+
+        if action == "open_youtube":
+
+         return self.respond(
+          original_command,
+          self.app_tools.open_youtube()
+    )
+
+        if action == "open_google":
+
+         return self.respond(
+           original_command,
+           self.app_tools.open_google()
+    )
+
+
 
         # -----------------------------------------
         # FILE OPERATIONS

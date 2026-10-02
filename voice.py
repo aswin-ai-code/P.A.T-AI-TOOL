@@ -1,7 +1,7 @@
 import os
 import re
-import time
 
+import time
 import pyttsx3
 import speech_recognition as sr
 
@@ -9,7 +9,6 @@ from faster_whisper import WhisperModel
 
 
 class PATVoice:
-
     def __init__(self):
 
         # =================================================
@@ -35,9 +34,7 @@ class PATVoice:
         print("Loading local Whisper model...")
 
         self.whisper = WhisperModel(
-            self.whisper_model_path,
-            device="cpu",
-            compute_type="int8"
+            self.whisper_model_path, device="cpu", compute_type="int8"
         )
 
         print("Whisper model loaded successfully.")
@@ -48,7 +45,7 @@ class PATVoice:
 
         print("Initializing P.A.T voice...")
 
-        self.tts_rate = 165
+        self.tts_rate = 155
         self.tts_volume = 1.0
 
         self.engine = None
@@ -64,32 +61,19 @@ class PATVoice:
     def _initialize_tts(self):
 
         try:
-
             # Create a completely fresh engine
             self.engine = pyttsx3.init()
 
-            self.engine.setProperty(
-                "rate",
-                self.tts_rate
-            )
+            self.engine.setProperty("rate", self.tts_rate)
 
-            self.engine.setProperty(
-                "volume",
-                self.tts_volume
-            )
+            self.engine.setProperty("volume", self.tts_volume)
 
-            print(
-                "TTS engine initialized successfully."
-            )
+            print("TTS engine initialized successfully.")
 
         except Exception as error:
-
             self.engine = None
 
-            print(
-                f"TTS initialization error: "
-                f"{type(error).__name__}: {error}"
-            )
+            print(f"TTS initialization error: {type(error).__name__}: {error}")
 
     # =====================================================
     # SPEAK
@@ -112,10 +96,8 @@ class PATVoice:
         # -------------------------------------------------
 
         try:
-
             # Stop and release previous engine
             if self.engine is not None:
-
                 try:
                     self.engine.stop()
                 except Exception:
@@ -129,36 +111,21 @@ class PATVoice:
             # Create fresh engine
             self.engine = pyttsx3.init()
 
-            self.engine.setProperty(
-                "rate",
-                self.tts_rate
-            )
+            self.engine.setProperty("rate", self.tts_rate)
 
-            self.engine.setProperty(
-                "volume",
-                self.tts_volume
-            )
+            self.engine.setProperty("volume", self.tts_volume)
 
             # -------------------------------------------------
             # FIND AVAILABLE VOICES
             # -------------------------------------------------
 
             try:
-
-                voices = self.engine.getProperty(
-                    "voices"
-                )
-
-                if voices:
-
-                    # Use first available Windows voice
-                    self.engine.setProperty(
-                        "voice",
-                        voices[0].id
-                    )
+               voices = self.engine.getProperty("voices")
+               if voices:
+             # P.A.T custom voice
+                self.engine.setProperty("voice", voices[1].id)
 
             except Exception:
-
                 pass
 
             # -------------------------------------------------
@@ -180,38 +147,25 @@ class PATVoice:
 
             time.sleep(0.2)
 
-            print(
-                "🔊 Voice playback completed."
-            )
+            print("🔊 Voice playback completed.")
 
         except Exception as error:
-
-            print(
-                f"TTS error: "
-                f"{type(error).__name__}: {error}"
-            )
+            print(f"TTS error: {type(error).__name__}: {error}")
 
             # -------------------------------------------------
             # TTS RECOVERY
             # -------------------------------------------------
 
             try:
-
                 self.engine = None
 
                 time.sleep(0.2)
 
                 recovery_engine = pyttsx3.init()
 
-                recovery_engine.setProperty(
-                    "rate",
-                    self.tts_rate
-                )
+                recovery_engine.setProperty("rate", self.tts_rate)
 
-                recovery_engine.setProperty(
-                    "volume",
-                    self.tts_volume
-                )
+                recovery_engine.setProperty("volume", self.tts_volume)
 
                 recovery_engine.say(text)
 
@@ -224,16 +178,11 @@ class PATVoice:
 
                 self.engine = None
 
-                print(
-                    "🔊 Voice playback recovered."
-                )
+                print("🔊 Voice playback recovered.")
 
             except Exception as retry_error:
-
                 print(
-                    f"TTS recovery error: "
-                    f"{type(retry_error).__name__}: "
-                    f"{retry_error}"
+                    f"TTS recovery error: {type(retry_error).__name__}: {retry_error}"
                 )
 
                 self.engine = None
@@ -253,11 +202,7 @@ class PATVoice:
         # NORMALIZE WHITESPACE
         # -------------------------------------------------
 
-        text = re.sub(
-            r"\s+",
-            " ",
-            text
-        ).strip()
+        text = re.sub(r"\s+", " ", text).strip()
 
         # -------------------------------------------------
         # REMOVE EXACT DUPLICATE SENTENCE
@@ -266,30 +211,14 @@ class PATVoice:
         words = text.split()
 
         if len(words) >= 4:
-
-            for split_point in range(
-                1,
-                len(words) // 2 + 1
-            ):
-
+            for split_point in range(1, len(words) // 2 + 1):
                 first_part = words[:split_point]
 
                 second_part = words[split_point:]
 
-                if (
-                    len(second_part) == split_point
-                    and
-                    [
-                        word.lower().strip(".,!?")
-                        for word in first_part
-                    ]
-                    ==
-                    [
-                        word.lower().strip(".,!?")
-                        for word in second_part
-                    ]
-                ):
-
+                if len(second_part) == split_point and [
+                    word.lower().strip(".,!?") for word in first_part
+                ] == [word.lower().strip(".,!?") for word in second_part]:
                     text = " ".join(first_part)
 
                     break
@@ -301,22 +230,11 @@ class PATVoice:
         cleaned_words = []
 
         for word in text.split():
+            cleaned_word = word.lower().strip(".,!?")
 
-            cleaned_word = (
-                word.lower()
-                .strip(".,!?")
-            )
-
-            if (
-                cleaned_words
-                and
-                cleaned_word
-                ==
-                cleaned_words[-1]
-                .lower()
-                .strip(".,!?")
+            if cleaned_words and cleaned_word == cleaned_words[-1].lower().strip(
+                ".,!?"
             ):
-
                 continue
 
             cleaned_words.append(word)
@@ -327,10 +245,7 @@ class PATVoice:
         # P.A.T NAME CORRECTION
         # -------------------------------------------------
 
-        normalized = (
-            text.lower()
-            .strip(".,!?")
-        )
+        normalized = text.lower().strip(".,!?")
 
         replacements = {
             "bad": "P.A.T",
@@ -340,10 +255,7 @@ class PATVoice:
         }
 
         if normalized in replacements:
-
-            text = replacements[
-                normalized
-            ]
+            text = replacements[normalized]
 
         return text.strip()
 
@@ -356,33 +268,22 @@ class PATVoice:
         wav_file = "pat_voice_input.wav"
 
         try:
-
             # ---------------------------------------------
             # MICROPHONE
             # ---------------------------------------------
 
-            with sr.Microphone(
-                device_index=self.microphone_index
-            ) as source:
-
+            with sr.Microphone(device_index=self.microphone_index) as source:
                 print("🎤 Listening...")
 
                 # -----------------------------------------
                 # AMBIENT NOISE CALIBRATION
                 # -----------------------------------------
 
-                self.recognizer.adjust_for_ambient_noise(
-                    source,
-                    duration=0.25
-                )
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.25)
 
                 print("🎤 Speak now...")
 
-                audio = self.recognizer.listen(
-                    source,
-                    timeout=10,
-                    phrase_time_limit=10
-                )
+                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=10)
 
             print("🎧 Audio captured.")
 
@@ -392,11 +293,7 @@ class PATVoice:
 
             wav_data = audio.get_wav_data()
 
-            with open(
-                wav_file,
-                "wb"
-            ) as file:
-
+            with open(wav_file, "wb") as file:
                 file.write(wav_data)
 
             # ---------------------------------------------
@@ -406,17 +303,11 @@ class PATVoice:
             print("🧠 Running Whisper...")
 
             segments, info = self.whisper.transcribe(
-
                 wav_file,
-
                 language="en",
-
                 beam_size=5,
-
                 best_of=5,
-
                 temperature=0,
-
                 initial_prompt=(
                     "This is a continuous conversation "
                     "with P.A.T, Personal Assistant Tool. "
@@ -435,20 +326,14 @@ class PATVoice:
                     "open browser, "
                     "open YouTube."
                 ),
-
                 condition_on_previous_text=False,
-
                 vad_filter=True,
-
                 vad_parameters={
                     "min_silence_duration_ms": 350,
                     "speech_pad_ms": 200,
                 },
-
                 no_speech_threshold=0.35,
-
                 log_prob_threshold=-1.0,
-
                 compression_ratio_threshold=2.4,
             )
 
@@ -461,31 +346,46 @@ class PATVoice:
             text_parts = []
 
             for segment in segments:
-
-                segment_text = (
-                    segment.text
-                    .strip()
-                )
+                segment_text = segment.text.strip()
 
                 if segment_text:
+                    text_parts.append(segment_text)
 
-                    text_parts.append(
-                        segment_text
-                    )
+            text = " ".join(text_parts).strip()
 
-            text = " ".join(
-                text_parts
-            ).strip()
+            # ---------------------------------------------
+            # VOICE COMMAND ACCURACY CLEANUP
+            # ---------------------------------------------
+
+            text = text.lower().strip()
+
+            voice_corrections = {
+                "hello bad": "hello pat",
+                "hello bat": "hello pat",
+                "hello pad": "hello pat",
+                "hey bad": "hey pat",
+                "hey bat": "hey pat",
+                "hey pad": "hey pat",
+
+                "good bye": "goodbye",
+                "bye bye": "bye",
+
+                "time is it tell": "what time is it",
+                "tell me time": "tell me the time",
+                "what time": "what time is it",
+}
+
+            for wrong, correct in voice_corrections.items():
+              text = text.replace(wrong, correct)
+
+            text = " ".join(text.split())
 
             # ---------------------------------------------
             # EMPTY SPEECH
             # ---------------------------------------------
 
             if not text:
-
-                print(
-                    "P.A.T: No clear speech detected."
-                )
+                print("P.A.T: No clear speech detected.")
 
                 return ""
 
@@ -493,30 +393,22 @@ class PATVoice:
             # CLEAN
             # ---------------------------------------------
 
-            text = self.clean_transcription(
-                text
-            )
+            text = self.clean_transcription(text)
 
             if not text:
-
                 return ""
 
             # ---------------------------------------------
             # NORMALIZED TEXT
             # ---------------------------------------------
 
-            normalized_text = (
-                text.lower()
-                .strip()
-                .strip(".,!?")
-            )
+            normalized_text = text.lower().strip().strip(".,!?")
 
             # ---------------------------------------------
             # HALLUCINATION PROTECTION
             # ---------------------------------------------
 
             hallucination_phrases = {
-
                 "you",
                 "yeah",
                 "yes",
@@ -526,11 +418,7 @@ class PATVoice:
             }
 
             if normalized_text in hallucination_phrases:
-
-                print(
-                    "P.A.T: Ignoring possible "
-                    "Whisper hallucination."
-                )
+                print("P.A.T: Ignoring possible Whisper hallucination.")
 
                 return ""
 
@@ -539,11 +427,7 @@ class PATVoice:
             # ---------------------------------------------
 
             if len(normalized_text) <= 1:
-
-                print(
-                    "P.A.T: Ignoring very short "
-                    "voice input."
-                )
+                print("P.A.T: Ignoring very short voice input.")
 
                 return ""
 
@@ -556,11 +440,7 @@ class PATVoice:
                 "pat",
                 "p a t",
             }:
-
-                print(
-                    "P.A.T: Wake word detected. "
-                    "Waiting for command..."
-                )
+                print("P.A.T: Wake word detected. Waiting for command...")
 
                 return ""
 
@@ -571,23 +451,13 @@ class PATVoice:
             words = normalized_text.split()
 
             if len(words) >= 6:
-
                 unique_words = set(words)
 
                 if unique_words:
-
-                    repetition_ratio = (
-                        len(words)
-                        /
-                        len(unique_words)
-                    )
+                    repetition_ratio = len(words) / len(unique_words)
 
                     if repetition_ratio >= 2.5:
-
-                        print(
-                            "P.A.T: Ignoring possible "
-                            "Whisper repetition."
-                        )
+                        print("P.A.T: Ignoring possible Whisper repetition.")
 
                         return ""
 
@@ -595,15 +465,9 @@ class PATVoice:
             # DISPLAY RESULT
             # ---------------------------------------------
 
-            print(
-                f"Detected language: "
-                f"{info.language}"
-            )
+            print(f"Detected language: {info.language}")
 
-            print(
-                f"Whisper confidence: "
-                f"{info.language_probability:.2f}"
-            )
+            print(f"Whisper confidence: {info.language_probability:.2f}")
 
             return text
 
@@ -612,64 +476,36 @@ class PATVoice:
         # =================================================
 
         except sr.WaitTimeoutError:
-
-            print(
-                "P.A.T: I didn't hear anything."
-            )
+            print("P.A.T: I didn't hear anything.")
 
             return ""
 
         except KeyboardInterrupt:
-
-            print(
-                "\nP.A.T: Voice input stopped."
-            )
+            print("\nP.A.T: Voice input stopped.")
 
             return ""
 
         except OSError as error:
-
-            print(
-                f"Microphone error: {error}"
-            )
+            print(f"Microphone error: {error}")
 
             return ""
 
-        except (
-            ValueError,
-            RuntimeError
-        ) as error:
-
-            print(
-                f"Voice error: "
-                f"{type(error).__name__}: {error}"
-            )
+        except (ValueError, RuntimeError) as error:
+            print(f"Voice error: {type(error).__name__}: {error}")
 
             return ""
 
         except Exception as error:
-
-            print(
-                f"Unexpected voice error: "
-                f"{type(error).__name__}: {error}"
-            )
+            print(f"Unexpected voice error: {type(error).__name__}: {error}")
 
             return ""
 
         finally:
-
             try:
-
-                if os.path.exists(
-                    wav_file
-                ):
-
-                    os.remove(
-                        wav_file
-                    )
+                if os.path.exists(wav_file):
+                    os.remove(wav_file)
 
             except OSError:
-
                 pass
 
 
@@ -678,24 +514,16 @@ class PATVoice:
 # =========================================================
 
 if __name__ == "__main__":
-
     print()
 
-    print(
-        "===== P.A.T VOICE TEST ====="
-    )
+    print("===== P.A.T VOICE TEST =====")
 
     pat_voice = PATVoice()
 
-    pat_voice.speak(
-        "Voice system test successful."
-    )
+    pat_voice.speak("Voice system test successful.")
 
     text = pat_voice.listen()
 
     print()
 
-    print(
-        "Final result:",
-        text
-    )
+    print("Final result:", text)

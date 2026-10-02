@@ -16,7 +16,6 @@ from tools.file_tools import FileTools
 
 
 class PAT:
-
     def __init__(self):
         self.name = config.APP_NAME
         self.full_name = config.FULL_NAME
@@ -35,12 +34,90 @@ class PAT:
         self.user_name = self.memory.recall("user_name")
 
         if self.user_name:
-            self.user_name = (
-                self.user_name
-                .rstrip(".,!?")
-                .strip()
-            )
+            self.user_name = self.user_name.rstrip(
+                ".,!?"
+            ).strip()
 
+   
+    def split_multiple_commands(self, command):
+        """
+        Split and expand multiple commands.
+
+        Examples:
+        open calculator and notepad
+        -> open calculator
+        -> open notepad
+
+        close calculator and notepad
+        -> close calculator
+        -> close notepad
+        """
+
+        command = command.strip()
+
+        separators = [
+            " and then ",
+            " then ",
+            " and ",
+        ]
+
+        parts = [command]
+
+        for separator in separators:
+            new_parts = []
+
+            for part in parts:
+                new_parts.extend(part.split(separator))
+
+            parts = new_parts
+
+        parts = [
+            part.strip(" .,!?;:")
+            for part in parts
+            if part.strip(" .,!?;:")
+        ]
+
+        if len(parts) <= 1:
+            return parts
+
+        # -----------------------------------------
+        # INHERIT ACTION
+        # -----------------------------------------
+
+        first_words = parts[0].split()
+
+        if not first_words:
+            return parts
+
+        action_words = {
+            "open",
+            "close",
+            "show",
+            "list",
+            "start",
+            "launch",
+        }
+
+        first_action = first_words[0]
+
+        if first_action in action_words:
+            expanded_parts = [parts[0]]
+
+            for part in parts[1:]:
+                part = part.strip()
+
+                # Already has an action
+                if part.split()[0] in action_words:
+                    expanded_parts.append(part)
+                else:
+                    # Inherit action from first command
+                    expanded_parts.append(
+                        f"{first_action} {part}"
+                    )
+
+            return expanded_parts
+
+        return parts
     # -----------------------------------------
     # CONVERSATION CONTEXT
     # -----------------------------------------
@@ -81,11 +158,9 @@ class PAT:
         name,
         original_command=None
     ):
-        self.user_name = (
-            name
-            .rstrip(".,!?")
-            .strip()
-        )
+        self.user_name = name.rstrip(
+            ".,!?"
+        ).strip()
 
         self.memory.remember(
             "user_name",
@@ -110,7 +185,6 @@ class PAT:
     # -----------------------------------------
 
     def greet(self):
-
         if self.user_name:
             return (
                 f"Hello, {self.user_name}! "
@@ -130,7 +204,6 @@ class PAT:
         )
 
     def get_time(self):
-
         current_time = datetime.now(
             ZoneInfo("Asia/Kolkata")
         ).strftime("%I:%M:%S %p")
@@ -141,7 +214,6 @@ class PAT:
         )
 
     def get_date(self):
-
         current_date = datetime.now(
             ZoneInfo("Asia/Kolkata")
         ).strftime("%d %B %Y")
@@ -152,7 +224,6 @@ class PAT:
         )
 
     def get_system_info(self):
-
         return (
             f"Operating System: "
             f"{platform.system()} "
@@ -168,7 +239,6 @@ class PAT:
     # -----------------------------------------
 
     def help(self):
-
         return (
             "I can help you with conversation, "
             "time and date, system information, "
@@ -184,7 +254,6 @@ class PAT:
         self,
         command
     ):
-
         command = command.lower().strip()
 
         command = command.rstrip(
@@ -230,19 +299,29 @@ class PAT:
             "calculator" in command
             or "calc" in command
         ):
-            return self.app_tools.open_calculator()
+            return (
+                self.app_tools.open_calculator()
+            )
 
         if "notepad" in command:
-            return self.app_tools.open_notepad()
+            return (
+                self.app_tools.open_notepad()
+            )
 
         if "youtube" in command:
-            return self.app_tools.open_youtube()
+            return (
+                self.app_tools.open_youtube()
+            )
 
         if "google" in command:
-            return self.app_tools.open_google()
+            return (
+                self.app_tools.open_google()
+            )
 
         if "browser" in command:
-            return self.app_tools.open_browser()
+            return (
+                self.app_tools.open_browser()
+            )
 
         return (
             "I understood that you want "
@@ -256,8 +335,7 @@ class PAT:
     # -----------------------------------------
 
     def execute_task(self, user_input):
-
-        """Plan and execute an AI task using available tools."""
+        """Plan and execute an AI task."""
 
         if not isinstance(
             user_input,
@@ -266,16 +344,15 @@ class PAT:
             return None
 
         intent = (
-            self.ai_engine
-            .intent_engine
-            .detect_intent(
-                user_input
-            )
+            self.ai_engine.intent_engine
+            .detect_intent(user_input)
         )
 
-        plan = self.task_planner.create_plan(
-            intent,
-            user_input
+        plan = (
+            self.task_planner.create_plan(
+                intent,
+                user_input
+            )
         )
 
         if not plan:
@@ -289,7 +366,6 @@ class PAT:
             return None
 
         while True:
-
             step = (
                 self.task_engine
                 .get_current_step()
@@ -299,15 +375,15 @@ class PAT:
                 break
 
             try:
-
-                result = self._execute_task_step(
-                    intent,
-                    user_input,
-                    step
+                result = (
+                    self._execute_task_step(
+                        intent,
+                        user_input,
+                        step
+                    )
                 )
 
                 if result is not None:
-
                     self.task_engine.complete_current_step()
 
                     if (
@@ -317,9 +393,9 @@ class PAT:
                         return result
 
                 else:
-
                     self.task_engine.fail_task(
-                        f"Unable to execute step: {step}"
+                        f"Unable to execute step: "
+                        f"{step}"
                     )
 
                     return None
@@ -329,7 +405,6 @@ class PAT:
                 ValueError,
                 RuntimeError
             ) as error:
-
                 self.task_engine.fail_task(
                     str(error)
                 )
@@ -344,13 +419,10 @@ class PAT:
         user_input,
         step
     ):
-
-        """Execute a single task step using available tools."""
+        """Execute a single task step."""
 
         command = (
-            user_input
-            .lower()
-            .strip()
+            user_input.lower().strip()
         )
 
         step_text = step.lower()
@@ -362,21 +434,27 @@ class PAT:
         if intent == "application_control":
 
             if "execute the action" in step_text:
-                return self.handle_application_control(
-                    command
+                return (
+                    self.handle_application_control(
+                        command
+                    )
                 )
 
             if (
                 "identify the requested application"
                 in step_text
             ):
-                return "Application identified."
+                return (
+                    "Application identified."
+                )
 
             if (
                 "determine the requested action"
                 in step_text
             ):
-                return "Application action identified."
+                return (
+                    "Application action identified."
+                )
 
             if "check permissions" in step_text:
                 return (
@@ -398,19 +476,27 @@ class PAT:
                 "list" in command
                 and "file" in command
             ):
-                return self.file_tools.list_files()
+                return (
+                    self.file_tools.list_files()
+                )
 
             if (
                 "list" in command
                 and "folder" in command
             ):
-                return self.file_tools.list_folders()
+                return (
+                    self.file_tools.list_folders()
+                )
 
             if "file count" in command:
-                return self.file_tools.file_count()
+                return (
+                    self.file_tools.file_count()
+                )
 
             if "folder count" in command:
-                return self.file_tools.folder_count()
+                return (
+                    self.file_tools.folder_count()
+                )
 
             if (
                 "execute the operation"
@@ -427,7 +513,9 @@ class PAT:
                 "file operation"
                 in step_text
             ):
-                return "File operation identified."
+                return (
+                    "File operation identified."
+                )
 
             if (
                 "identify the target file "
@@ -508,9 +596,7 @@ class PAT:
             intent == "memory_recall"
             and "name" in command
         ):
-
             if self.user_name:
-
                 return (
                     f"Your name is "
                     f"{self.user_name}."
@@ -546,10 +632,8 @@ class PAT:
         self,
         command
     ):
-
         text = (
-            command
-            .lower()
+            command.lower()
             .strip()
             .rstrip(string.punctuation)
         )
@@ -564,7 +648,8 @@ class PAT:
         ):
             return (
                 "I am doing great! "
-                "I am here and ready to talk with you."
+                "I am here and ready to talk "
+                "with you."
             )
 
         # -----------------------------------------
@@ -578,8 +663,8 @@ class PAT:
         ):
             return (
                 "You sound tired. "
-                "Take a short break, relax for a while, "
-                "and get some rest."
+                "Take a short break, relax for "
+                "a while, and get some rest."
             )
 
         if (
@@ -599,7 +684,8 @@ class PAT:
         ):
             return (
                 "I am sorry you are feeling that way. "
-                "You can talk to me about it if you want."
+                "You can talk to me about it if "
+                "you want."
             )
 
         if (
@@ -608,7 +694,8 @@ class PAT:
         ):
             return (
                 "If you're bored, we can talk, "
-                "work on P.A.T, or do something productive."
+                "work on P.A.T, or do something "
+                "productive."
             )
 
         # -----------------------------------------
@@ -656,12 +743,13 @@ class PAT:
             or "tell me about pat" in text
         ):
             return (
-                "I am P.A.T, your Personal Assistant Tool. "
-                "I can communicate with you by voice, "
-                "remember useful information, "
+                "I am P.A.T, your Personal Assistant "
+                "Tool. I can communicate with you by "
+                "voice, remember useful information, "
                 "handle supported tasks, work with "
-                "applications and files, provide system "
-                "information, and respond to your commands."
+                "applications and files, provide "
+                "system information, and respond to "
+                "your commands."
             )
 
         # -----------------------------------------
@@ -695,9 +783,10 @@ class PAT:
             ).strip()
 
             if (
-                len(possible_name.split()) <= 3
-                and possible_name
-                not in {
+                len(
+                    possible_name.split()
+                ) <= 3
+                and possible_name not in {
                     "tired",
                     "happy",
                     "sad",
@@ -705,7 +794,7 @@ class PAT:
                     "fine",
                     "good",
                     "okay",
-                    "ok"
+                    "ok",
                 }
             ):
                 return self.remember_name(
@@ -762,7 +851,8 @@ class PAT:
         ):
             return (
                 "I can try to help with that. "
-                "Tell me exactly what you would like me to do."
+                "Tell me exactly what you would "
+                "like me to do."
             )
 
         if (
@@ -772,9 +862,10 @@ class PAT:
         ):
             return (
                 "I understand your question. "
-                "I am still expanding my knowledge and "
-                "conversation capabilities, but I can "
-                "help with the tasks currently available to me."
+                "I am still expanding my knowledge "
+                "and conversation capabilities, "
+                "but I can help with the tasks "
+                "currently available to me."
             )
 
         return (
@@ -786,23 +877,39 @@ class PAT:
     # COMMAND PROCESSING
     # -----------------------------------------
 
-    def process_command(self, command):
+    def process_command(
+        self,
+        command
+    ):
 
-        if not isinstance(
-            command,
-            str
-        ):
-            return "Please enter a valid message."
+        if not isinstance(command, str):
+            return (
+                "Please enter a valid message."
+            )
 
         # Keep original Whisper text
         original_command = command.strip()
 
+                # -----------------------------------------
+        # MULTI-COMMAND PROCESSING
+        # -----------------------------------------
+
+        if isinstance(command, str):
+            command_parts = self.split_multiple_commands(command)
+
+            if len(command_parts) > 1:
+                responses = []
+
+                for part in command_parts:
+                    result = self.process_command(part)
+
+                    if result:
+                        responses.append(result)
+
+                return " ".join(responses)
+
         # Normalize command
-        command = (
-            command
-            .lower()
-            .strip()
-        )
+        command = command.lower().strip()
 
         # -----------------------------------------
         # REMOVE P.A.T WAKE WORD
@@ -818,11 +925,9 @@ class PAT:
         )
 
         for wake_word in wake_words:
-
             if command.startswith(
                 wake_word
             ):
-
                 command = command[
                     len(wake_word):
                 ].strip()
@@ -830,11 +935,9 @@ class PAT:
                 break
 
         # Remove punctuation at the end
-        command = (
-            command
-            .rstrip(string.punctuation)
-            .strip()
-        )
+        command = command.rstrip(
+            string.punctuation
+        ).strip()
 
         if not command:
             return (
@@ -857,7 +960,6 @@ class PAT:
             ).strip()
 
             if name:
-
                 return self.remember_name(
                     name,
                     original_command
@@ -885,14 +987,12 @@ class PAT:
         if command in name_questions:
 
             if self.user_name:
-
                 response = (
                     f"Your name is "
                     f"{self.user_name}."
                 )
 
             else:
-
                 response = (
                     "I don't know your name yet."
                 )
@@ -911,48 +1011,50 @@ class PAT:
         )
 
         if action == "greeting":
-
             return self.respond(
                 original_command,
                 self.greet()
             )
 
         if action == "how_are_you":
-
             return self.respond(
                 original_command,
-                "I am doing great! "
-                "I am ready to help you."
+                (
+                    "I am doing great! "
+                    "I am ready to help you."
+                )
             )
 
         if action == "assistant_name":
-
             return self.respond(
                 original_command,
-                f"My name is {self.name}, "
-                "Personal Assistant Tool."
+                (
+                    f"My name is {self.name}, "
+                    "Personal Assistant Tool."
+                )
             )
 
         if action == "who_are_you":
-
             return self.respond(
                 original_command,
-                "I am P.A.T, "
-                "your Personal Assistant Tool."
+                (
+                    "I am P.A.T, your Personal "
+                    "Assistant Tool."
+                )
             )
 
         if action == "thanks":
 
             if self.user_name:
-
                 response = (
                     f"You're welcome, "
                     f"{self.user_name}!"
                 )
 
             else:
-
-                response = "You're welcome!"
+                response = (
+                    "You're welcome!"
+                )
 
             return self.respond(
                 original_command,
@@ -960,7 +1062,6 @@ class PAT:
             )
 
         if action == "time":
-
             return self.respond(
                 original_command,
                 self.get_time()
@@ -971,7 +1072,6 @@ class PAT:
         # -----------------------------------------
 
         if action == "date":
-
             return self.respond(
                 original_command,
                 self.get_date()
@@ -982,7 +1082,6 @@ class PAT:
         # -----------------------------------------
 
         if action == "system_info":
-
             return self.respond(
                 original_command,
                 self.get_system_info()
@@ -993,7 +1092,6 @@ class PAT:
         # -----------------------------------------
 
         if action == "status":
-
             return self.respond(
                 original_command,
                 self.status()
@@ -1004,7 +1102,6 @@ class PAT:
         # -----------------------------------------
 
         if action == "help":
-
             return self.respond(
                 original_command,
                 self.help()
@@ -1015,41 +1112,254 @@ class PAT:
         # -----------------------------------------
 
         if action == "open_calculator":
-
-          return self.respond(
-            original_command,
-            self.app_tools.open_calculator()
-    )
+            return self.respond(
+                original_command,
+                self.app_tools.open_calculator()
+            )
 
         if action == "open_notepad":
-
-         return self.respond(
-           original_command,
-           self.app_tools.open_notepad()
-    )
+            return self.respond(
+                original_command,
+                self.app_tools.open_notepad()
+            )
 
         if action == "open_browser":
-
-         return self.respond(
-          original_command,
-          self.app_tools.open_browser()
-    )
+            return self.respond(
+                original_command,
+                self.app_tools.open_browser()
+            )
 
         if action == "open_youtube":
-
-         return self.respond(
-          original_command,
-          self.app_tools.open_youtube()
-    )
+            return self.respond(
+                original_command,
+                self.app_tools.open_youtube()
+            )
 
         if action == "open_google":
+            return self.respond(
+                original_command,
+                self.app_tools.open_google()
+            )
 
-         return self.respond(
-           original_command,
-           self.app_tools.open_google()
-    )
+        # -----------------------------------------
+        # UNIVERSAL PC CONTROL
+        # -----------------------------------------
 
+        if action == "close_calculator":
+            return self.respond(
+                original_command,
+                self.app_tools.close_calculator()
+            )
 
+        if action == "close_notepad":
+            return self.respond(
+                original_command,
+                self.app_tools.close_notepad()
+            )
+
+        if action == "close_browser":
+            return self.respond(
+                original_command,
+                self.app_tools.close_browser()
+            )
+
+        if action == "show_desktop":
+            return self.respond(
+                original_command,
+                self.app_tools.show_desktop()
+            )
+
+        if action == "minimize_window":
+            return self.respond(
+                original_command,
+                self.app_tools.minimize_window()
+            )
+
+        if action == "maximize_window":
+            return self.respond(
+                original_command,
+                self.app_tools.maximize_window()
+            )
+
+        if action == "lock_computer":
+            return self.respond(
+                original_command,
+                self.app_tools.lock_computer()
+            )
+
+        # -----------------------------------------
+        # SPECIFIC FILE / FOLDER CONTROL
+        # -----------------------------------------
+
+        cleaned_command = command.strip(
+            " .,!?;"
+        )
+
+        # -----------------------------------------
+        # OPEN SPECIFIC FILE
+        # -----------------------------------------
+
+        if cleaned_command.startswith(
+            "open file"
+        ):
+
+            target = cleaned_command[
+                len("open file"):
+            ].strip(
+                " .,!?;"
+            )
+
+            if target:
+                return self.respond(
+                    original_command,
+                    self.app_tools.open_specific_file(
+                        target
+                    )
+                )
+
+        # -----------------------------------------
+        # OPEN SPECIFIC FOLDER
+        # -----------------------------------------
+
+        folder_command = cleaned_command
+
+        # Common Whisper mistake:
+        # "holder tools" -> "open folder tools"
+        if folder_command.startswith(
+            "holder "
+        ):
+            folder_command = (
+                "open folder "
+                + folder_command[
+                    len("holder "):
+                ]
+            )
+
+        # "folder tools" -> "open folder tools"
+        elif folder_command.startswith(
+            "folder "
+        ):
+            folder_command = (
+                "open folder "
+                + folder_command[
+                    len("folder "):
+                ]
+            )
+
+        if folder_command.startswith(
+            "open folder"
+        ):
+
+            target = folder_command[
+                len("open folder"):
+            ].strip(
+                " .,!?;"
+            )
+
+            # Convert internal commas to spaces.
+            # Example:
+            # "tools, open" -> "tools open"
+            target = target.replace(
+                ",",
+                " "
+            )
+
+            target = " ".join(
+                target.split()
+            )
+
+            # Remove accidental trailing words
+            # produced by Whisper.
+            trailing_words = (
+                "open",
+                "please",
+                "now",
+            )
+
+            for word in trailing_words:
+
+                if target.endswith(
+                    " " + word
+                ):
+                    target = target[
+                        :-len(word)
+                    ].strip()
+
+            # Whisper may recognize A.I.
+            # as a folder name.
+            target = target.replace(
+                "a.i.",
+                "ai"
+            )
+
+            target = target.replace(
+                "a.i",
+                "ai"
+            )
+
+            if target:
+                return self.respond(
+                    original_command,
+                    self.app_tools.open_specific_folder(
+                        target
+                    )
+                )
+        # -----------------------------------------
+        # CLOSE SPECIFIC FOLDER
+        # -----------------------------------------
+
+        close_folder_command = cleaned_command
+
+        # "close tools folder"
+        if (
+            close_folder_command.startswith("close ")
+            and close_folder_command.endswith(" folder")
+        ):
+            target = close_folder_command[
+                len("close "):-len(" folder")
+            ].strip()
+
+        # "close folder tools"
+        elif close_folder_command.startswith(
+            "close folder "
+        ):
+            target = close_folder_command[
+                len("close folder "):
+            ].strip()
+
+        else:
+            target = ""
+
+        if target:
+            target = target.replace(",", " ")
+            target = " ".join(target.split())
+
+            # Handle Whisper variations
+            target = target.replace("a.i.", "ai")
+            target = target.replace("a.i", "ai")
+
+            return self.respond(
+                original_command,
+                self.app_tools.close_specific_folder(
+                    target
+                )
+            )
+
+        # -----------------------------------------
+        # GENERIC FILE / FOLDER COMMANDS
+        # -----------------------------------------
+
+        if action == "open_file":
+            return self.respond(
+                original_command,
+                self.app_tools.open_file()
+            )
+
+        if action == "open_folder":
+            return self.respond(
+                original_command,
+                self.app_tools.open_folder()
+            )
 
         # -----------------------------------------
         # FILE OPERATIONS
@@ -1062,7 +1372,6 @@ class PAT:
             )
 
             if response:
-
                 return self.respond(
                     original_command,
                     response
@@ -1077,7 +1386,6 @@ class PAT:
         )
 
         if task_response:
-
             return self.respond(
                 original_command,
                 task_response

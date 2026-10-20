@@ -1,18 +1,19 @@
-﻿import platform
+import platform
 import string
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from voice import PATVoice
-
 import config
 from ai.ai_engine import AIEngine
+from ai.context import ConversationContext
+from ai.intent_engine import IntentEngine
 from ai.planner import TaskPlanner
 from ai.task_engine import TaskEngine
 from commands import CommandHandler
 from memory import Memory
 from tools.app_tools import AppTools
 from tools.file_tools import FileTools
+from voice import PATVoice
 
 
 class PAT:
@@ -24,7 +25,7 @@ class PAT:
 
         self.commands = CommandHandler()
         self.memory = Memory()
-        self.ai_engine = AIEngine()
+        self.ai_engine = AIEngine(intent_engine=IntentEngine(), context_engine=ConversationContext())
         self.app_tools = AppTools()
         self.file_tools = FileTools()
 
@@ -127,12 +128,12 @@ class PAT:
         user_message,
         assistant_message
     ):
-        self.ai_engine.context.add_message(
+        self.ai_engine.context_engine.add_message(
             "user",
             user_message
         )
 
-        self.ai_engine.context.add_message(
+        self.ai_engine.context_engine.add_message(
             "assistant",
             assistant_message
         )
@@ -343,15 +344,15 @@ class PAT:
         ):
             return None
 
-        intent = (
-            self.ai_engine.intent_engine
-            .detect_intent(user_input)
+        intent_result = self.ai_engine.intent_engine.detect_intent(
+            user_input
         )
+        intent = getattr(intent_result, "intent", intent_result)
 
         plan = (
             self.task_planner.create_plan(
-                intent,
-                user_input
+                user_input,
+                intent=str(intent)
             )
         )
 
@@ -716,6 +717,41 @@ class PAT:
             )
 
         # -----------------------------------------
+        # FAREWELL (CHECK BEFORE THANKS)
+        # -----------------------------------------
+
+        farewell_phrases = (
+            "bye",
+            "goodbye",
+            "good bye",
+            "see you",
+            "talk to you later",
+            "catch you later",
+        )
+
+        if any(phrase in text for phrase in farewell_phrases):
+            if "thank you" in text or "thanks" in text:
+                return (
+                    "You're welcome! Goodbye"
+                    + (
+                        f", {self.user_name}"
+                        if self.user_name
+                        else ""
+                    )
+                    + ". Talk to you soon!"
+                )
+
+            return (
+                "Goodbye"
+                + (
+                    f", {self.user_name}"
+                    if self.user_name
+                    else ""
+                )
+                + "! Talk to you soon."
+            )
+
+        # -----------------------------------------
         # THANKS
         # -----------------------------------------
 
@@ -807,16 +843,13 @@ class PAT:
         # -----------------------------------------
 
         if (
-            text.startswith("hello")
-            or text.startswith("hi ")
-            or text == "hi"
-            or text.startswith("hey")
+            text.startswith(("hello", "hi ", "hey")) or text == "hi"
         ):
             return self.greet()
 
         if "good morning" in text:
             return (
-                f"Good morning"
+                "Good morning"
                 + (
                     f", {self.user_name}"
                     if self.user_name
@@ -836,9 +869,7 @@ class PAT:
         # -----------------------------------------
 
         if (
-            text.startswith("i ")
-            or text.startswith("i'm ")
-            or text.startswith("i am ")
+            text.startswith(("i ", "i'm ", "i am "))
         ):
             return (
                 "I understand. "
@@ -846,8 +877,7 @@ class PAT:
             )
 
         if (
-            text.startswith("can you ")
-            or text.startswith("could you ")
+            text.startswith(("can you ", "could you "))
         ):
             return (
                 "I can try to help with that. "
@@ -856,9 +886,7 @@ class PAT:
             )
 
         if (
-            text.startswith("what ")
-            or text.startswith("why ")
-            or text.startswith("how ")
+            text.startswith(("what ", "why ", "how "))
         ):
             return (
                 "I understand your question. "
@@ -1359,6 +1387,44 @@ class PAT:
             return self.respond(
                 original_command,
                 self.app_tools.open_folder()
+            )
+
+        # -----------------------------------------
+        # CONVERSATION INTENT ROUTING
+        # -----------------------------------------
+
+        intent_result = (
+            self.ai_engine.intent_engine.detect_intent(
+                original_command
+            )
+        )
+
+        if isinstance(intent_result, dict):
+            detected_intent = intent_result.get("intent")
+            detected_category = intent_result.get("category")
+        else:
+            detected_intent = getattr(
+                intent_result,
+                "intent",
+                intent_result
+            )
+            detected_category = getattr(
+                intent_result,
+                "category",
+                None
+            )
+
+        if (
+            detected_category == "conversation"
+            or str(detected_intent).lower()
+            in {"greeting", "conversation", "farewell"}
+        ):
+            response = self.natural_conversation(
+                original_command
+            )
+            return self.respond(
+                original_command,
+                response
             )
 
         # -----------------------------------------

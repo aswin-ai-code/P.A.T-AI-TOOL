@@ -1,520 +1,496 @@
+
+"""
+P.A.T Advanced Intent Engine
+============================
+
+Identifies user intent, task category, entities, and clarification needs.
+
+Design:
+- Tamil, English, and Tanglish-friendly phrase recognition.
+- Rule-based local classification with confidence scores.
+- Context-aware follow-up hints.
+- Extensible intent registry.
+- Structured output compatible with AIEngine.
+- No network access, model downloads, or task execution.
+
+This is a local intent classifier, not a substitute for a trained LLM.
+"""
+
+from __future__ import annotations
+
 import re
+import threading
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+
+@dataclass(slots=True)
+class IntentResult:
+    """Structured result from intent classification."""
+
+    intent: str
+    confidence: float
+    category: str = "conversation"
+    entities: dict[str, Any] = field(default_factory=dict)
+    needs_clarification: bool = False
+    clarifying_question: str | None = None
+    plan: list[str] = field(default_factory=list)
+    source: str = "local_rules"
+    alternatives: list[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 class IntentEngine:
-    def __init__(self):
+    """Thread-safe, extensible intent classification for P.A.T."""
 
-        self.intent_keywords = {
+    def __init__(
+        self,
+        *,
+        confidence_threshold: float = 0.40,
+        custom_intents: Mapping[str, list[str]] | None = None,
+    ) -> None:
+        self.confidence_threshold = max(
+            0.0, min(1.0, float(confidence_threshold))
+        )
+        self._lock = threading.RLock()
 
-            # -------------------------------------------------
-            # GREETING
-            # -------------------------------------------------
-
-            "greeting": [
-                "hello",
-                "hi",
-                "hey",
-                "good morning",
-                "good afternoon",
-                "good evening",
-                "vanakkam",
-                "vanakam",
-                "vanakkam pat",
-                "vanakam pat",
-            ],
-
-            # -------------------------------------------------
-            # HOW ARE YOU
-            # -------------------------------------------------
-
-            "how_are_you": [
-                "how are you",
-                "how are you doing",
-                "how r u",
-                "epdi iruka",
-                "eppadi iruka",
-                "epdi irukke",
-                "eppadi irukke",
-            ],
-
-            # -------------------------------------------------
-            # ASSISTANT NAME
-            # -------------------------------------------------
-
-            "assistant_name": [
-                "what is your name",
-                "what's your name",
-                "whats your name",
-                "tell me your name",
-                "your name",
-                "what are you called",
-            ],
-
-            # -------------------------------------------------
-            # WHO ARE YOU
-            # -------------------------------------------------
-
-            "who_are_you": [
-                "who are you",
-                "what are you",
-                "tell me about yourself",
-                "who made you",
-                "who created you",
-            ],
-
-            # -------------------------------------------------
-            # MEMORY
-            # -------------------------------------------------
-
-            "memory_recall": [
-                "remember",
-                "what did i say",
-                "what did i tell you",
-                "last message",
-                "do you remember",
-                "do you remember what i said",
-                "what did i just say",
-                "what was my last message",
-                "nyabagam iruka",
-                "nyabagam irukka",
-            ],
-
-            # -------------------------------------------------
-            # SYSTEM INFORMATION
-            # -------------------------------------------------
-
-            "system_info": [
-                "system information",
-                "system info",
-                "computer information",
-                "computer info",
-                "pc information",
-                "pc info",
-                "my system",
-                "what system am i using",
-                "ram",
-                "cpu",
-                "processor",
-                "storage",
-            ],
-
-            # -------------------------------------------------
-            # FILE OPERATIONS
-            # -------------------------------------------------
-
-            "file_operation": [
-                "open file",
-                "read file",
-                "find file",
-                "search file",
-                "create file",
-                "delete file",
-                "rename file",
-                "show files",
-                "list files",
-                "files kaatu",
-                "file kaatu",
-                "files show pannu",
-                "file show pannu",
-            ],
-
-            # -------------------------------------------------
-            # APPLICATION CONTROL
-            # -------------------------------------------------
-
-            "application_control": [
-                "open app",
-                "open application",
-                "close app",
-                "close application",
-                "launch",
-                "start application",
-                "open calculator",
-                "open calc",
-                "calculator open",
-                "open notepad",
-                "notepad open",
-                "open browser",
-                "browser open",
-                "open youtube",
-                "youtube open",
-                "open google",
-                "google open",
-                "calculator ah open pannu",
-                "calculator open pannu",
-                "browser ah open pannu",
-                "browser open pannu",
-                "youtube ah open pannu",
-                "youtube open pannu",
-            ],
-
-            # -------------------------------------------------
-            # CALCULATION
-            # -------------------------------------------------
-
-            "calculation": [
-                "calculate",
-                "calc",
-                "solve",
-                "how much is",
-                "plus",
-                "minus",
-                "multiply",
-                "times",
-                "divide",
-                "add",
-                "subtract",
-            ],
-
-            # -------------------------------------------------
-            # TIME / DATE
-            # -------------------------------------------------
-
-            "time_date": [
-                "what time",
-                "current time",
-                "tell me the time",
-                "tell me current time",
-                "time now",
-                "what is the time",
-                "time enna",
-                "neram enna",
-                "ippo time enna",
-                "now time enna",
-                "what date",
-                "current date",
-                "today's date",
-                "date today",
-                "what day",
-                "what day is it",
-                "what day is it today",
-                "which day",
-                "which day is it",
-                "date enna",
-                "innaiku date enna",
-                "indhaiku date enna",
-                "today date enna",
-            ],
-
-            # -------------------------------------------------
-            # WEB SEARCH
-            # -------------------------------------------------
-
-            "web_search": [
-                "search web",
-                "search online",
-                "search internet",
-                "look up",
-                "find online",
-                "search for",
-                "search",
-                "google search",
-                "online la search pannu",
-                "internet la search pannu",
-            ],
-
-            # -------------------------------------------------
-            # HELP
-            # -------------------------------------------------
-
-            "help": [
-                "help",
-                "what can you do",
-                "what can u do",
-                "commands",
-                "features",
-                "help me",
-                "help pannu",
-                "help pannunga",
-                "enna panna mudiyum",
-                "enna lam panna mudiyum",
-                "enna seiya mudiyum",
-            ],
-
-            # -------------------------------------------------
-            # EXIT
-            # -------------------------------------------------
-
-            "exit": [
-                "exit",
-                "quit",
-                "close pat",
-                "shutdown pat",
-                "goodbye",
-                "bye",
-                "bye pat",
-                "poitu varen",
-            ],
+        self._patterns: dict[str, tuple[str, ...]] = {
+            "greeting": (
+                "hello", "hi", "hey", "good morning", "good evening",
+                "vanakkam", "வணக்கம்", "ஹாய்", "ஹலோ",
+            ),
+            "farewell": (
+                "bye", "goodbye", "see you", "take care",
+                "poitu varen", "போயிட்டு வரேன்",
+            ),
+            "help": (
+                "help me", "need help", "what can you do",
+                "உதவி", "enna panna mudiyum",
+            ),
+            "question": (
+                "what is", "who is", "where is", "when is", "why",
+                "explain", "meaning", "enna artham", "enna meaning",
+                "என்ன", "யார்", "எங்கே", "ஏன்", "விளக்கு",
+            ),
+            "planning": (
+                "make a plan", "create a plan", "roadmap",
+                "step by step", "how do i", "how to",
+                "plan pannu", "eppadi", "திட்டம்", "எப்படி",
+            ),
+            "coding": (
+                "write code", "fix this code", "debug",
+                "python code", "program", "function", "class ",
+                "full replacement code", "code kudu", "code thaa",
+                "கோடு எழுது",
+            ),
+            "file_operation": (
+                "open file", "read file", "find file", "copy file",
+                "move file", "rename file", "delete file",
+                "file open", "folder", "கோப்பு",
+            ),
+            "browser_search": (
+                "search web", "search google", "search online",
+                "look up online", "find on internet", "browse web",
+                "google la search", "internet la thedu",
+            ),
+            "download": (
+                "download", "save this file", "get this file",
+                "download pannu", "download kudu",
+            ),
+            "app_control": (
+                "open app", "launch app", "close app", "start application",
+                "open calculator", "open notepad",
+                "app open pannu",
+            ),
+            "system_info": (
+                "system information", "computer specs", "cpu usage",
+                "memory usage", "disk space", "battery status",
+                "system status", "pc status",
+            ),
+            "time_date": (
+                "what time", "current time", "today's date",
+                "what date", "neram enna", "mani enna",
+                "இப்போது மணி", "இன்றைய தேதி",
+            ),
+            "calculation": (
+                "calculate", "what is the sum", "multiply",
+                "divide", "percentage", "calculator",
+                "kanakku pannu", "கணக்கிடு",
+            ),
+            "memory_recall": (
+                "remember", "do you remember", "what did i say",
+                "recall", "last time", "munnadi sonnen",
+                "nyabagam irukka", "நினைவிருக்கிறதா",
+            ),
+            "memory_store": (
+                "remember that", "save this preference",
+                "store this", "keep this in memory",
+                "idha nyabagam vechuko", "நினைவில் வை",
+            ),
+            "security_check": (
+                "security scan", "check for threats", "suspicious process",
+                "network activity", "security report", "threat detection",
+                "security check pannu",
+            ),
+            "automation": (
+                "automate", "repeat these steps", "workflow",
+                "do this automatically", "teach me once",
+                "automatic ah pannu",
+            ),
+            "task_status": (
+                "task status", "progress report", "what is pending",
+                "what is completed", "status sollu",
+            ),
+            "confirmation": (
+                "yes", "confirm", "approved", "proceed",
+                "aama", "seri pannu", "ஆம்", "சரி",
+            ),
+            "cancellation": (
+                "cancel", "stop", "abort", "don't do that",
+                "vendam", "niruthu", "வேண்டாம்", "நிறுத்து",
+            ),
+            "complaint": (
+                "that is wrong", "not working", "you made a mistake",
+                "incorrect", "doesn't work", "thappu",
+                "work aagala", "தவறு",
+            ),
         }
 
-        # Common filler words
-        self.filler_words = {
-            "please",
-            "can",
-            "you",
-            "could",
-            "would",
-            "will",
-            "pat",
-            "hey",
-            "kindly",
-            "just",
-            "me",
+        if custom_intents:
+            for name, phrases in custom_intents.items():
+                key = str(name).strip().casefold()
+                if key and isinstance(phrases, list):
+                    normalized = tuple(
+                        str(phrase).strip().casefold()
+                        for phrase in phrases
+                        if str(phrase).strip()
+                    )
+                    if normalized:
+                        self._patterns[key] = normalized
+
+        self._category_map: dict[str, str] = {
+            "greeting": "conversation",
+            "farewell": "conversation",
+            "help": "conversation",
+            "question": "information",
+            "planning": "planning",
+            "coding": "development",
+            "file_operation": "computer_control",
+            "browser_search": "web",
+            "download": "web",
+            "app_control": "computer_control",
+            "system_info": "system",
+            "time_date": "information",
+            "calculation": "utility",
+            "memory_recall": "memory",
+            "memory_store": "memory",
+            "security_check": "security",
+            "automation": "automation",
+            "task_status": "task_management",
+            "confirmation": "conversation_control",
+            "cancellation": "conversation_control",
+            "complaint": "feedback",
         }
 
-        # Common spelling / speech variations
-        self.spelling_aliases = {
-            "wat": "what",
-            "wht": "what",
-            "pls": "please",
-            "plz": "please",
-            "u": "you",
-            "ur": "your",
-            "calclator": "calculator",
-            "calculater": "calculator",
-            "calcultor": "calculator",
-            "brower": "browser",
-            "broser": "browser",
-            "notpad": "notepad",
-            "youtub": "youtube",
-            "todays": "today's",
-            "opn": "open",
-        }
+    # ---------------------------------------------------------------
+    # Public API
+    # ---------------------------------------------------------------
 
-    # ---------------------------------------------------------
-    # NORMALIZATION
-    # ---------------------------------------------------------
+    def detect_intent(
+        self,
+        text: str,
+        *,
+        context: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Classify text and return a dictionary for AIEngine compatibility."""
+        result = self.classify(text, context=context)
+        return result.to_dict()
 
-    def _normalize(self, text):
-
+    def classify(
+        self,
+        text: str,
+        *,
+        context: Mapping[str, Any] | None = None,
+    ) -> IntentResult:
         if not isinstance(text, str):
-            return ""
+            raise TypeError("Intent input must be a string")
 
-        text = text.lower().strip()
+        original = text.strip()
+        if not original:
+            return IntentResult(
+                intent="unknown",
+                confidence=0.0,
+                needs_clarification=True,
+                clarifying_question="What would you like me to help with?",
+            )
 
-        # Apply spelling aliases
-        words = text.split()
+        normalized = self._normalize(original)
+        context = context or {}
 
-        words = [
-            self.spelling_aliases.get(word, word)
-            for word in words
+        # Explicit cancellation takes precedence over other detected intents.
+        if self._matches(normalized, self._patterns["cancellation"]):
+            return IntentResult(
+                intent="cancellation",
+                confidence=0.98,
+                category="conversation_control",
+            )
+
+        # Confirmation is meaningful only if the conversation has a pending
+        # action or clarification; otherwise, "yes" is ambiguous.
+        if self._is_confirmation(normalized):
+            pending = self._has_pending_action(context)
+            return IntentResult(
+                intent="confirmation" if pending else "conversation",
+                confidence=0.92 if pending else 0.50,
+                category="conversation_control" if pending else "conversation",
+                needs_clarification=not pending,
+                clarifying_question=(
+                    None if pending else
+                    "What would you like me to confirm?"
+                ),
+            )
+
+        scores: list[tuple[str, float, list[str]]] = []
+
+        with self._lock:
+            patterns = dict(self._patterns)
+
+        for intent_name, phrases in patterns.items():
+            if intent_name in {"confirmation", "cancellation"}:
+                continue
+
+            matches = [
+                phrase for phrase in phrases
+                if self._phrase_matches(normalized, phrase)
+            ]
+            if matches:
+                # Prefer precise and multiword matches.
+                best_match = max(
+                    matches,
+                    key=lambda phrase: (
+                        len(phrase.split()),
+                        len(phrase),
+                    ),
+                )
+                score = min(
+                    0.97,
+                    0.58 + min(len(best_match) / 100, 0.20)
+                    + (0.08 if len(best_match.split()) > 1 else 0.0),
+                )
+                scores.append((intent_name, score, matches))
+
+        if not scores:
+            follow_up = self._is_follow_up(original, context)
+            return IntentResult(
+                intent="conversation",
+                confidence=0.42 if follow_up else 0.30,
+                category="conversation",
+                entities=self._extract_entities(original),
+                needs_clarification=False,
+                source="context_rules" if follow_up else "local_rules",
+            )
+
+        scores.sort(key=lambda item: item[1], reverse=True)
+        best_intent, confidence, matched_phrases = scores[0]
+
+        # Overlapping rules may indicate a multi-purpose request.
+        alternatives = [
+            {"intent": name, "confidence": score}
+            for name, score, _ in scores[1:4]
         ]
 
-        text = " ".join(words)
-
-        # Remove punctuation
-        text = re.sub(r"[^\w\s']", " ", text)
-
-        # Normalize spaces
-        text = re.sub(r"\s+", " ", text).strip()
-
-        return text
-
-    # ---------------------------------------------------------
-    # SAFE PHRASE MATCHING
-    # ---------------------------------------------------------
-
-    def _contains_phrase(self, text, phrase):
-
-        if not text or not phrase:
-            return False
-
-        pattern = r"(?<!\w)" + re.escape(phrase) + r"(?!\w)"
-
-        return re.search(pattern, text) is not None
-
-    # ---------------------------------------------------------
-    # FILLER WORD REMOVAL
-    # ---------------------------------------------------------
-
-    def _remove_filler_words(self, text):
-
-        words = text.split()
-
-        filtered_words = [
-            word
-            for word in words
-            if word not in self.filler_words
-        ]
-
-        return " ".join(filtered_words)
-
-    # ---------------------------------------------------------
-    # INTENT DETECTION
-    # ---------------------------------------------------------
-
-    def detect_intent(self, text):
-
-        if not isinstance(text, str):
-            return "unknown"
-
-        cleaned_text = self._normalize(text)
-
-        if not cleaned_text:
-            return "unknown"
-
-        # -------------------------------------------------
-        # HIGH PRIORITY INTENTS
-        # -------------------------------------------------
-
-        priority_intents = [
-            "time_date",
-            "assistant_name",
-            "who_are_you",
-            "how_are_you",
-            "memory_recall",
-            "application_control",
-            "file_operation",
-            "system_info",
-            "help",
-            "exit",
-            "web_search",
-            "calculation",
-        ]
-
-        # -------------------------------------------------
-        # DIRECT MATCH
-        # -------------------------------------------------
-
-        for intent in priority_intents:
-
-            for keyword in self.intent_keywords.get(
-                intent,
-                []
-            ):
-
-                if self._contains_phrase(
-                    cleaned_text,
-                    keyword
-                ):
-                    return intent
-
-        # -------------------------------------------------
-        # GREETING
-        # -------------------------------------------------
-
-        for keyword in self.intent_keywords.get(
-            "greeting",
-            []
-        ):
-
-            if self._contains_phrase(
-                cleaned_text,
-                keyword
-            ):
-                return "greeting"
-
-        # -------------------------------------------------
-        # REMOVE FILLER WORDS
-        # -------------------------------------------------
-
-        simplified_text = self._remove_filler_words(
-            cleaned_text
+        needs_clarification = self._needs_more_detail(
+            best_intent, original, matched_phrases
         )
 
-        # -------------------------------------------------
-        # MATCH AFTER CLEANUP
-        # -------------------------------------------------
+        question = None
+        if needs_clarification:
+            question = self._clarification_question(best_intent)
 
-        for intent in priority_intents:
+        return IntentResult(
+            intent=best_intent,
+            confidence=confidence,
+            category=self._category_map.get(best_intent, "general"),
+            entities=self._extract_entities(original),
+            needs_clarification=needs_clarification,
+            clarifying_question=question,
+            source="local_rules",
+            alternatives=alternatives,
+        )
 
-            for keyword in self.intent_keywords.get(
-                intent,
-                []
-            ):
+    def register_intent(
+        self,
+        name: str,
+        phrases: list[str],
+        *,
+        category: str = "custom",
+    ) -> None:
+        """Register or replace an intent without restarting P.A.T."""
+        normalized_name = str(name).strip().casefold()
+        normalized_phrases = tuple(
+            str(phrase).strip().casefold()
+            for phrase in phrases
+            if str(phrase).strip()
+        )
 
-                if self._contains_phrase(
-                    simplified_text,
-                    keyword
-                ):
-                    return intent
+        if not normalized_name:
+            raise ValueError("Intent name cannot be empty")
+        if not normalized_phrases:
+            raise ValueError("At least one intent phrase is required")
 
-        # -------------------------------------------------
-        # GREETING AFTER CLEANUP
-        # -------------------------------------------------
+        with self._lock:
+            self._patterns[normalized_name] = normalized_phrases
+            self._category_map[normalized_name] = str(category).strip()
 
-        for keyword in self.intent_keywords.get(
-            "greeting",
-            []
-        ):
+    def get_supported_intents(self) -> list[str]:
+        with self._lock:
+            return sorted(self._patterns)
 
-            if self._contains_phrase(
-                simplified_text,
-                keyword
-            ):
-                return "greeting"
+    def get_status(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "engine": "P.A.T Intent Engine",
+                "mode": "local_rules",
+                "intent_count": len(self._patterns),
+                "confidence_threshold": self.confidence_threshold,
+                "intents": sorted(self._patterns),
+            }
 
-        return "general_conversation"
+    # ---------------------------------------------------------------
+    # Internal helpers
+    # ---------------------------------------------------------------
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        text = text.casefold().strip()
+        text = re.sub(r"\s+", " ", text)
+        return text.strip(" \t\r\n.!?,")
+
+    @staticmethod
+    def _phrase_matches(text: str, phrase: str) -> bool:
+        phrase = phrase.casefold().strip()
+        if not phrase:
+            return False
+
+        # Multiword and non-Latin phrases use substring matching. For a
+        # single Latin word, boundaries avoid matching inside another word.
+        if " " in phrase or any(ord(char) > 127 for char in phrase):
+            return phrase in text
+
+        return re.search(
+            rf"(?<!\w){re.escape(phrase)}(?!\w)",
+            text,
+            flags=re.UNICODE,
+        ) is not None
+
+    @classmethod
+    def _matches(cls, text: str, phrases: tuple[str, ...]) -> bool:
+        return any(cls._phrase_matches(text, phrase) for phrase in phrases)
+
+    @staticmethod
+    def _is_confirmation(text: str) -> bool:
+        return text in {
+            "yes", "yes please", "confirm", "approved", "proceed",
+            "aama", "seri pannu", "ஆம்", "சரி",
+        }
+
+    @staticmethod
+    def _has_pending_action(context: Mapping[str, Any]) -> bool:
+        if context.get("pending_action") or context.get("pending_confirmation"):
+            return True
+
+        follow_up = context.get("follow_up")
+        if isinstance(follow_up, Mapping):
+            return bool(follow_up.get("pending_action"))
+
+        return False
+
+    @classmethod
+    def _is_follow_up(
+        cls,
+        text: str,
+        context: Mapping[str, Any],
+    ) -> bool:
+        normalized = cls._normalize(text)
+        history = context.get("history") or context.get("recent_history")
+        has_history = isinstance(history, (list, tuple)) and bool(history)
+
+        if not has_history:
+            return False
+
+        phrases = (
+            "continue", "what next", "do that", "same one",
+            "tell me more", "explain more", "அடுத்து", "தொடரு",
+            "அதை", "அதுக்கு",
+        )
+        return any(phrase in normalized for phrase in phrases)
+
+    @staticmethod
+    def _extract_entities(text: str) -> dict[str, Any]:
+        """Extract lightweight hints; these are not verified entities."""
+        paths = re.findall(
+            r"""(?:"([^"]+\.[A-Za-z0-9]{1,8})"|'([^']+\.[A-Za-z0-9]{1,8})')""",
+            text,
+        )
+        file_paths = [
+            first or second for first, second in paths if first or second
+        ]
+
+        urls = re.findall(r"https?://[^\s<>\"']+", text)
+        quoted = re.findall(r'"([^"]{1,200})"|\'([^\']{1,200})\'', text)
+        quoted_phrases = [
+            first or second
+            for first, second in quoted
+            if first or second
+        ]
+
+        return {
+            "file_paths": file_paths,
+            "urls": urls,
+            "quoted_phrases": quoted_phrases,
+        }
+
+    @staticmethod
+    def _needs_more_detail(
+        intent: str,
+        text: str,
+        matches: list[str],
+    ) -> bool:
+        if intent in {"file_operation", "download", "app_control"}:
+            generic_only = all(
+                phrase in {"folder", "download", "open file", "file open"}
+                for phrase in matches
+            )
+            return generic_only and len(text.split()) <= 4
+
+        if intent == "automation" and len(text.split()) <= 3:
+            return True
+
+        return intent == "planning" and len(text.split()) <= 2
+
+    @staticmethod
+    def _clarification_question(intent: str) -> str:
+        questions = {
+            "file_operation": "Which file or folder should I work with, and what should I do?",
+            "download": "What file or link would you like to download?",
+            "app_control": "Which application should I open or control?",
+            "automation": "Which workflow would you like me to automate?",
+            "planning": "What goal should I create a step-by-step plan for?",
+        }
+        return questions.get(
+            intent,
+            "Could you share a little more detail about what you want?",
+        )
 
 
-# -------------------------------------------------------------
-# TEST
-# -------------------------------------------------------------
+# Compatibility aliases for integrations that use alternate class names.
+IntentClassifier = IntentEngine
 
-if __name__ == "__main__":
-
-    engine = IntentEngine()
-
-    print("P.A.T Intent Engine Test")
-    print("------------------------")
-
-    test_messages = [
-
-        # English
-        "hello",
-        "Hey PAT!",
-        "Pat, can you tell me the time please?",
-        "what time is it?",
-        "please tell me the current time",
-
-        # Assistant
-        "what is your name?",
-        "who are you?",
-        "tell me your name",
-
-        # How are you
-        "how are you?",
-        "how are you doing?",
-
-        # Calculation
-        "calculate 25 plus 10",
-        "Can you calculate 25 plus 10?",
-
-        # Web
-        "search internet for Python",
-
-        # Help
-        "what can you do?",
-
-        # Memory
-        "what did I say?",
-
-        # Exit
-        "bye",
-
-        # Date
-        "Pat, can you tell me what day it is today?",
-        "Hey PAT, what is the date today please?",
-
-        # Tamil / Tanglish
-        "Vanakkam PAT",
-        "PAT, epdi iruka?",
-        "time enna PAT?",
-        "innaiku date enna?",
-        "calculator open pannu",
-        "browser ah open pannu",
-        "enna panna mudiyum?",
-
-        # Typing mistakes
-        "wat time is it",
-        "calclator open",
-        "opn browser",
-    ]
-
-    for message in test_messages:
-
-        intent = engine.detect_intent(message)
-
-        print("User:", message)
-        print("Intent:", intent)
-        print()
+__all__ = [
+    "IntentClassifier",
+    "IntentEngine",
+    "IntentResult",
+]

@@ -1,6 +1,13 @@
 from assistant import PAT
 
 
+def speak_and_report(voice, text):
+    """Speak and report whether the TTS call succeeded."""
+    result = voice.speak(text)
+    print(f"TTS RESULT: {result}", flush=True)
+    return result
+
+
 def main():
 
     print("=" * 40)
@@ -20,7 +27,7 @@ def main():
     greeting = pat.greet()
 
     if greeting:
-        voice.speak(greeting)
+        speak_and_report(voice, greeting)
 
     # -----------------------------------------
     # CONTINUOUS CONVERSATION LOOP
@@ -90,16 +97,7 @@ def main():
             should_exit = (
                 normalized_input in exit_commands
                 or normalized_input.startswith(
-                    "good bye "
-                )
-                or normalized_input.startswith(
-                    "goodbye "
-                )
-                or normalized_input.startswith(
-                    "bye "
-                )
-                or normalized_input.startswith(
-                    "exit "
+                    ("good bye ", "goodbye ", "bye ", "exit ")
                 )
             )
 
@@ -110,9 +108,9 @@ def main():
                     "P.A.T is shutting down."
                 )
 
-                print("🔊 Speaking response...")
+                print("Speaking response...")
 
-                voice.speak(
+                speak_and_report(voice,
                     response
                 )
 
@@ -136,13 +134,10 @@ def main():
 
             if response:
 
-                print(
-                    "🔊 Speaking response..."
-                )
+                print(f"P.A.T RESPONSE: {response}", flush=True)
+                print("Speaking response...", flush=True)
 
-                voice.speak(
-                    response
-                )
+                speak_and_report(voice, response)
 
             else:
 
@@ -152,7 +147,7 @@ def main():
                     "Please tell me what you need."
                 )
 
-                voice.speak(
+                speak_and_report(voice,
                     fallback
                 )
 
@@ -164,7 +159,7 @@ def main():
 
             break
 
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
 
             print(
                 "\nVoice loop error: "

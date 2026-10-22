@@ -336,83 +336,30 @@ class PAT:
     # -----------------------------------------
 
     def execute_task(self, user_input):
-        """Plan and execute an AI task."""
+        """Execute a supported task using P.A.T's existing step logic."""
 
-        if not isinstance(
-            user_input,
-            str
-        ):
+        if not isinstance(user_input, str) or not user_input.strip():
             return None
 
-        intent_result = self.ai_engine.intent_engine.detect_intent(
-            user_input
-        )
-        intent = getattr(intent_result, "intent", intent_result)
+        command = user_input.strip()
 
-        plan = (
-            self.task_planner.create_plan(
-                user_input,
-                intent=str(intent)
+        try:
+            intent_result = self.ai_engine.intent_engine.detect_intent(
+                command
             )
-        )
+            intent = getattr(intent_result, "intent", intent_result)
 
-        if not plan:
-            return None
-
-        if not self.task_engine.start_task(
-            intent,
-            user_input,
-            plan
-        ):
-            return None
-
-        while True:
-            step = (
-                self.task_engine
-                .get_current_step()
+            # Use the existing executor directly. The current TaskEngine
+            # does not implement the legacy start/complete/fail API.
+            return self._execute_task_step(
+                str(intent),
+                command,
+                command,
             )
 
-            if step is None:
-                break
-
-            try:
-                result = (
-                    self._execute_task_step(
-                        intent,
-                        user_input,
-                        step
-                    )
-                )
-
-                if result is not None:
-                    self.task_engine.complete_current_step()
-
-                    if (
-                        self.task_engine.get_status()
-                        == "completed"
-                    ):
-                        return result
-
-                else:
-                    self.task_engine.fail_task(
-                        f"Unable to execute step: "
-                        f"{step}"
-                    )
-
-                    return None
-
-            except (
-                OSError,
-                ValueError,
-                RuntimeError
-            ) as error:
-                self.task_engine.fail_task(
-                    str(error)
-                )
-
-                return None
-
-        return None
+        except (OSError, ValueError, RuntimeError) as error:
+            print(f"P.A.T task error: {error}")
+            return None
 
     def _execute_task_step(
         self,
@@ -953,19 +900,19 @@ class PAT:
         )
 
         for wake_word in wake_words:
-            if command.startswith(
-                wake_word
-            ):
-                command = command[
-                    len(wake_word):
-                ].strip()
-
+            if command.startswith(wake_word):
+                command = command[len(wake_word):].lstrip(
+                    " \\t,.:;!?_-"
+                )
                 break
 
         # Remove punctuation at the end
         command = command.rstrip(
             string.punctuation
         ).strip()
+
+        # Normalize fillers before checking name and commands
+        command = self.commands.normalize(command)
 
         if not command:
             return (
@@ -1034,9 +981,16 @@ class PAT:
         # EXACT COMMAND IDENTIFICATION
         # -----------------------------------------
 
-        action = self.commands.identify(
-            command
-        )
+        # Normalize spoken command prefixes before routing.
+        command = self.commands.normalize(command)
+
+        action = self.commands.identify(command)
+
+        if action == "conversation_done":
+            return self.respond(
+                original_command,
+                "Seri bro, purinjiduchu! Vera edhavadhu venumna sollu."
+            )
 
         if action == "greeting":
             return self.respond(

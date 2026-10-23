@@ -1,15 +1,3 @@
-"""Voice input and text-to-speech for P.A.T.
-
-Offline-first speech recognition with Tamil-script-to-Tanglish display conversion.
-English transcripts are preserved as English. This module does not print transcripts
-or send microphone audio online unless online recognition is explicitly requested.
-"""
-from __future__ import annotations
-import sys
-import subprocess
-import base64
-
-
 
 import logging
 import tempfile
@@ -205,7 +193,7 @@ class PATVoice:
         return text
 
     def speak(self, text: str) -> bool:
-        """Speak text using Windows native speech on Windows."""
+        """Speak text using the initialized native TTS engine."""
         if not isinstance(text, str) or not text.strip():
             return False
 
@@ -213,60 +201,16 @@ class PATVoice:
             return False
 
         with self._tts_lock:
-            if self._closed:
+            if self._closed or self._tts_engine is None:
                 return False
 
             try:
-                if sys.platform == "win32":
-                    encoded_text = base64.b64encode(
-                        text.strip().encode("utf-8")
-                    ).decode("ascii")
-
-                    script = f"""
-Add-Type -AssemblyName System.Speech
-$text = [System.Text.Encoding]::UTF8.GetString(
-    [System.Convert]::FromBase64String('{encoded_text}')
-)
-$speaker = New-Object System.Speech.Synthesis.SpeechSynthesizer
-try {{
-    $speaker.Volume = 100
-    $speaker.Rate = 0
-    $speaker.Speak($text)
-}}
-finally {{
-    $speaker.Dispose()
-}}
-"""
-                    encoded_script = base64.b64encode(
-                        script.encode("utf-16le")
-                    ).decode("ascii")
-
-                    subprocess.run(
-                        [
-                            "powershell.exe",
-                            "-NoProfile",
-                            "-NonInteractive",
-                            "-EncodedCommand",
-                            encoded_script,
-                        ],
-                        check=True,
-                        timeout=120,
-                        capture_output=True,
-                        text=True,
-                    )
-                    return True
-
-                if self._tts_engine is None:
-                    return False
-
                 self._tts_engine.say(text.strip())
                 self._tts_engine.runAndWait()
                 return True
-
             except Exception:
                 logger.exception("Text-to-speech failed.")
                 return False
-
     def say(self, text: str) -> bool:
         """Compatibility alias for speak()."""
         return self.speak(text)
@@ -394,6 +338,20 @@ finally {{
                 options["language"] = normalized_language
 
             segments, _info = model.transcribe(temp_path, **options)
+            print(
+                "WHISPER LANGUAGE:",
+                getattr(_info, "language", "unknown"),
+                "PROBABILITY:",
+                round(getattr(_info, "language_probability", 0.0), 3),
+            )
+            segments = list(segments)
+            print(
+               "WHISPER SEGMENTS:",
+             [
+                  (round(s.start, 2), round(s.end, 2), repr(s.text))
+                   for s in segments
+           ],
+        )
             raw_transcript = " ".join(
                 segment.text.strip()
                 for segment in segments

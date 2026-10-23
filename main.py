@@ -1,11 +1,58 @@
+import base64
+import subprocess
+
 from assistant import PAT
 
 
 def speak_and_report(voice, text):
-    """Speak and report whether the TTS call succeeded."""
-    result = voice.speak(text)
-    print(f"TTS RESULT: {result}", flush=True)
-    return result
+    """Speak through native Windows SAPI and report real process errors."""
+    if not isinstance(text, str) or not text.strip():
+        print("TTS SKIPPED: empty response", flush=True)
+        return False
+
+    script = (
+        "Add-Type -AssemblyName System.Speech; "
+        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+        "$s.Volume = 100; "
+        "$s.Rate = 0; "
+        "$s.Speak([Console]::In.ReadToEnd()); "
+        "$s.Dispose()"
+    )
+
+    encoded_script = base64.b64encode(
+        script.encode("utf-16le")
+    ).decode("ascii")
+
+    try:
+        result = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-EncodedCommand",
+                encoded_script,
+            ],
+            input=text.strip(),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+            check=False,
+        )
+
+        print(f"WINDOWS SAPI EXIT CODE: {result.returncode}", flush=True)
+
+        if result.returncode != 0:
+            print(f"SAPI ERROR: {result.stderr}", flush=True)
+            return False
+
+        print("WINDOWS SAPI COMMAND COMPLETED", flush=True)
+        return True
+
+    except (subprocess.SubprocessError, OSError) as exc:
+        print(f"SAPI ERROR: {type(exc).__name__}: {exc}", flush=True)
+        return False
 
 
 def main():
@@ -136,8 +183,8 @@ def main():
 
                 print(f"P.A.T RESPONSE: {response}", flush=True)
                 print("Speaking response...", flush=True)
-
-                speak_and_report(voice, response)
+                speak_and_report(voice,response)
+                
 
             else:
 
@@ -169,3 +216,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

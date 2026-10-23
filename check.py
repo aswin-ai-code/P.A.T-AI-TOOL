@@ -1,4 +1,4 @@
-
+﻿
 """P.A.T project health checker.
 
 Checks Python syntax, expected project files, imports, and Ruff.
@@ -36,7 +36,7 @@ def report(label: str, success: bool, detail: str = "") -> bool:
     status = "PASS" if success else "FAIL"
     message = f"[{status}] {label}"
     if detail:
-        message += f" — {detail}"
+        message += f" â€” {detail}"
 
     print(message)
     return success
@@ -182,9 +182,9 @@ def check_ruff() -> bool:
             report("Ruff", False, "Not installed; lint check skipped")
             return False
 
-        command = [sys.executable, "-m", "ruff", "check", str(PROJECT), "--exclude", "backups,backups/**,communication_backup_*,*.bak,*.before_*"]
+        command = [sys.executable, "-m", "ruff", "check", str(PROJECT), "--exclude", "backups,backups/**,communication_backup_*,pat_backup_*,voice_before_*,voice_day1_backup.py,*.bak,*.before_*,*.py.bak"]
     else:
-        command = [ruff, "check", str(PROJECT), "--exclude", "backups,backups/**,communication_backup_*,*.bak,*.before_*"]
+        command = [ruff, "check", str(PROJECT), "--exclude", "backups,backups/**,communication_backup_*,pat_backup_*,voice_before_*,voice_day1_backup.py,*.bak,*.before_*,*.py.bak"]
 
     try:
         result = subprocess.run(
@@ -261,3 +261,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

@@ -16,7 +16,8 @@ for phrase in tests:
         print(f"RESULT TYPE: {type(result).__name__}")
         print(f"RESULT: {result!r}")
         print("-" * 30)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"INPUT: {phrase}")
         print(f"ERROR: {type(exc).__name__}: {exc}")
         print("-" * 30)
+
